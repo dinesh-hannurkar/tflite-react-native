@@ -26,6 +26,7 @@ import org.tensorflow.lite.Tensor;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -40,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Vector;
+import java.io.*;
 
 public class TfliteReactNativeModule extends ReactContextBaseJavaModule {
 
@@ -64,12 +66,22 @@ public class TfliteReactNativeModule extends ReactContextBaseJavaModule {
   @ReactMethod
   private void loadModel(final String modelPath, final String labelsPath, final int numThreads, final Callback callback)
       throws IOException {
-    AssetManager assetManager = reactContext.getAssets();
-    AssetFileDescriptor fileDescriptor = assetManager.openFd(modelPath);
-    FileInputStream inputStream = new FileInputStream(fileDescriptor.getFileDescriptor());
+    // AssetManager assetManager = reactContext.getAssets();
+    //
+    // FileDescriptor fileDescriptorNew = null;
+    // FileOutputStream fileOut=new FileOutputStream(modelPath);
+    FileInputStream inputStream = new FileInputStream(modelPath);
+    File file=new File(modelPath);
+    FileDescriptor fileDescriptorNew = inputStream.getFD();
+    long startOffset = (long)0.0;
+    long declaredLength = file.length();
+
+    //
+    // AssetFileDescriptor fileDescriptor = assetManager.openFd(modelPath);
+    // FileInputStream inputStream = new FileInputStream(fileDescriptorNew.getFileDescriptor());
     FileChannel fileChannel = inputStream.getChannel();
-    long startOffset = fileDescriptor.getStartOffset();
-    long declaredLength = fileDescriptor.getDeclaredLength();
+    // long startOffset = fileDescriptorNew.getStartOffset();
+    // long declaredLength = fileDescriptorNew.getDeclaredLength();
     MappedByteBuffer buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
 
     final Interpreter.Options tfliteOptions = new Interpreter.Options();
@@ -77,16 +89,18 @@ public class TfliteReactNativeModule extends ReactContextBaseJavaModule {
     tfLite = new Interpreter(buffer, tfliteOptions);
 
     if (labelsPath.length() > 0) {
-      loadLabels(assetManager, labelsPath);
+      loadLabels(labelsPath);
     }
 
     callback.invoke(null, "success");
   }
 
-  private void loadLabels(AssetManager assetManager, String path) {
+  private void loadLabels( String path) {
     BufferedReader br;
     try {
-      br = new BufferedReader(new InputStreamReader(assetManager.open(path)));
+      FileInputStream inputStream = new FileInputStream(path);
+      // br = new BufferedReader(new InputStreamReader(assetManager.open(path)));
+      br = new BufferedReader(new InputStreamReader(inputStream));
       String line;
       labels = new Vector<>();
       while ((line = br.readLine()) != null) {
